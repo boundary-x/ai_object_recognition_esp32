@@ -388,7 +388,7 @@ async function predictWebcam() {
 async function connectBluetooth() {
   try {
     bluetoothDevice = await navigator.bluetooth.requestDevice({
-      filters: [{ name: "ESP_kwon" }],
+      filters: [{ name: "ESP" }],
       optionalServices: [UART_SERVICE_UUID]
     });
     const server = await bluetoothDevice.gatt.connect();
