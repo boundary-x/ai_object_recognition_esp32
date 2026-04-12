@@ -6,15 +6,15 @@
 
 import { ObjectDetector, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.2";
 
-// --- Bluetooth UUIDs (Microbit UART) ---
-const UART_SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
-const UART_TX_CHARACTERISTIC_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
-const UART_RX_CHARACTERISTIC_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
+// --- Bluetooth UUIDs (ESP32 NUS) ---
+const UART_SERVICE_UUID       = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+const UART_WRITE_UUID         = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"; // 웹 → ESP32 (쓰기)
+const UART_NOTIFY_UUID        = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"; // ESP32 → 웹 (알림)
 
 // --- Variables ---
 let bluetoothDevice = null;
-let rxCharacteristic = null;
-let txCharacteristic = null;
+let writeCharacteristic = null;   // 웹 → ESP32
+let notifyCharacteristic = null;  // ESP32 → 웹
 let isConnected = false;
 let bluetoothStatus = "연결 대기 중";
 let isSendingData = false; 
@@ -388,14 +388,14 @@ async function predictWebcam() {
 async function connectBluetooth() {
   try {
     bluetoothDevice = await navigator.bluetooth.requestDevice({
-      filters: [{ namePrefix: "BBC micro:bit" }],
+      filters: [{ name: "ESP_kwon" }],
       optionalServices: [UART_SERVICE_UUID]
     });
     const server = await bluetoothDevice.gatt.connect();
     const service = await server.getPrimaryService(UART_SERVICE_UUID);
-    rxCharacteristic = await service.getCharacteristic(UART_RX_CHARACTERISTIC_UUID);
-    txCharacteristic = await service.getCharacteristic(UART_TX_CHARACTERISTIC_UUID);
-    txCharacteristic.startNotifications();
+    writeCharacteristic  = await service.getCharacteristic(UART_WRITE_UUID);   // 웹 → ESP32
+    notifyCharacteristic = await service.getCharacteristic(UART_NOTIFY_UUID);  // ESP32 → 웹
+    notifyCharacteristic.startNotifications();
     isConnected = true;
     bluetoothStatus = "연결됨: " + bluetoothDevice.name;
     updateBluetoothStatusUI(true);
@@ -412,8 +412,8 @@ function disconnectBluetooth() {
   }
   isConnected = false;
   bluetoothStatus = "연결 해제됨";
-  rxCharacteristic = null;
-  txCharacteristic = null;
+  writeCharacteristic  = null;
+  notifyCharacteristic = null;
   bluetoothDevice = null;
   updateBluetoothStatusUI(false);
 }
@@ -430,24 +430,23 @@ function updateBluetoothStatusUI(connected = false, error = false) {
 }
 
 async function sendBluetoothData(x, y, width, height, detectedCount) {
-  if (!rxCharacteristic || !isConnected) return;
+  if (!writeCharacteristic || !isConnected) return;
   if (isSendingData) return;
   
   try {
     isSendingData = true; 
+    const encoder = new TextEncoder();
     
-    // Stop 신호 처리 (좌표가 stop 이거나 감지된 수가 0일 때)
+    // Stop 신호
     if (x === "stop" || detectedCount === 0) {
-      const encoder = new TextEncoder();
-      await rxCharacteristic.writeValue(encoder.encode("stop\n"));
+      await writeCharacteristic.writeValue(encoder.encode("stop\n"));
       return;
     }
     
     // 일반 데이터 전송
     if (detectedCount > 0) {
       const data = `x${Math.round(x)}y${Math.round(y)}w${Math.round(width)}h${Math.round(height)}d${detectedCount}\n`;
-      const encoder = new TextEncoder();
-      await rxCharacteristic.writeValue(encoder.encode(data));
+      await writeCharacteristic.writeValue(encoder.encode(data));
     }
 
   } catch (error) { console.error(error); } 
