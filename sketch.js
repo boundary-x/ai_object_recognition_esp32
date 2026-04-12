@@ -378,14 +378,14 @@ async function predictWebcam() {
 async function connectBluetooth() {
   try {
     bluetoothDevice = await navigator.bluetooth.requestDevice({
-      filters: [{ namePrefix: "ESP" }],      // ESP로 시작하는 모든 기기
-      optionalServices: [UART_SERVICE_UUID]
+      acceptAllDevices: true,               // 모든 BLE 기기 표시
+      optionalServices: [UART_SERVICE_UUID] // 서비스는 옵션으로 등록
     });
     const server  = await bluetoothDevice.gatt.connect();
     const service = await server.getPrimaryService(UART_SERVICE_UUID);
 
-    writeCharacteristic  = await service.getCharacteristic(UART_WRITE_UUID);   // 웹 → ESP32
-    notifyCharacteristic = await service.getCharacteristic(UART_NOTIFY_UUID);  // ESP32 → 웹
+    writeCharacteristic  = await service.getCharacteristic(UART_WRITE_UUID);
+    notifyCharacteristic = await service.getCharacteristic(UART_NOTIFY_UUID);
     notifyCharacteristic.startNotifications();
 
     isConnected     = true;
