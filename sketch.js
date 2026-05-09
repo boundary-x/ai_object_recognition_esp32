@@ -378,8 +378,9 @@ async function predictWebcam() {
 async function connectBluetooth() {
   try {
     bluetoothDevice = await navigator.bluetooth.requestDevice({
-      filters: [{ namePrefix: "ESP" }, { namePrefix: "MPY" } ],              
-      optionalServices: [UART_SERVICE_UUID] // 서비스는 옵션으로 등록
+      // 필터를 다시 범용적인 'ESP', 'MPY'로 복원했습니다.
+      filters: [{ namePrefix: "ESP" }, { namePrefix: "MPY" }],              
+      optionalServices: [UART_SERVICE_UUID] 
     });
     const server  = await bluetoothDevice.gatt.connect();
     const service = await server.getPrimaryService(UART_SERVICE_UUID);
